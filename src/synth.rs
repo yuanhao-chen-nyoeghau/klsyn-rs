@@ -1,6 +1,6 @@
 use crate::*;
 use rand::Rng;
-use std::f32::consts::PI;
+use std::{f32::consts::PI, fmt};
 
 // Filters
 
@@ -59,6 +59,7 @@ pub trait FilterStep {
 //    Substitute: q = (1 - g^2 * cos(w)) / (1 - g^2)
 //    b^2 - 2 * q * b + 1 = 0
 //    b = q - sqrt(q^2 - 1)                                or q + sqrt(q^2 - 1)
+#[derive(Debug)]
 pub struct LpFilter1 {
     sample_rate: usize,
     /// filter coefficient a
@@ -181,7 +182,7 @@ impl FilterStep for LpFilter1 {
 //  Gain at the resonance frequency:
 //    |H(f0)| = a / sqrt(1 + r^2 - 2 * r)
 //            = a / (1 - r)
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Resonator {
     sample_rate: usize,
     /// filter coefficient a
@@ -311,6 +312,7 @@ impl FilterStep for Resonator {
 //    y[n] = a * x[n] + b * x[n-1] + c * x[n-2]
 //  Transfer function:
 //    H(w) = a + b * e^(-jw) + c * e^(-2jw)
+#[derive(Debug)]
 struct AntiResonator {
     sample_rate: usize,
     /// filter coefficient a
@@ -432,6 +434,7 @@ impl FilterStep for AntiResonator {
 //    H(w) = 1 - e^(-jw)
 //  Frequency response:
 //    |H(w)| = sqrt(2 - 2 * cos(w))
+#[derive(Debug)]
 struct DifferencingFilter {
     /// x[n-1], last input value
     x1: f32,
@@ -475,6 +478,7 @@ fn get_white_noise<R: Rng>(rng: &mut R) -> f32 {
 }
 
 /// A low-pass filtered noise source.
+#[derive(Debug)]
 pub struct LpNoiseSource<R: Rng> {
     lp_filter: LpFilter1,
     rng: R,
@@ -507,6 +511,7 @@ impl<R: Rng> SourceGetNext for LpNoiseSource<R> {
 // Glottal sources
 
 /// Generates a glottal source signal by LP filtering a pulse train.
+#[derive(Debug)]
 pub struct ImpulsiveGlottalSource {
     resonator: Resonator,
     sample_rate: usize,
@@ -559,7 +564,7 @@ impl SourceStartPeriod for ImpulsiveGlottalSource {
 //
 // At the end of the open glottal phase there is an abrupt jump from the minimum value to zero.
 // This jump is not smoothed in the classic Klatt model. In Praat this "collision phase" is smoothed.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct NaturalGlottalSource {
     x: f32,
     a: f32,
@@ -599,6 +604,7 @@ impl SourceStartPeriod for NaturalGlottalSource {
     }
 }
 
+#[derive(Debug)]
 pub struct NoiseSource<R: Rng> {
     rng: R,
 }
@@ -618,10 +624,10 @@ impl<R: Rng> SourceStartPeriod for NoiseSource<R> {
     }
 }
 
-trait GlottalSource: SourceGetNext + SourceStartPeriod {}
+trait GlottalSource: SourceGetNext + SourceStartPeriod + fmt::Debug {}
 impl GlottalSource for ImpulsiveGlottalSource {}
 impl GlottalSource for NaturalGlottalSource {}
-impl<R: Rng> GlottalSource for NoiseSource<R> {}
+impl<R: Rng + fmt::Debug> GlottalSource for NoiseSource<R> {}
 
 // Utils
 
@@ -663,6 +669,7 @@ fn valid_freq(f: f32) -> bool {
 
 // Main logic
 
+#[derive(Debug)]
 pub enum GlottalSourceType {
     Impulsive,
     Natural,
@@ -671,6 +678,7 @@ pub enum GlottalSourceType {
 
 pub const MAX_ORAL_FORMANTS: usize = 6;
 
+#[derive(Debug)]
 pub struct MainParms {
     /// Sample rate in Hz.
     pub sample_rate: usize,
@@ -679,7 +687,7 @@ pub struct MainParms {
 }
 
 /// Parameters for a sound frame.
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq, PartialOrd)]
 pub struct FrameParms {
     /// Frame duration in seconds.
     pub duration: f32,
@@ -742,7 +750,7 @@ pub struct FrameParms {
 }
 
 /// Variables of the currently active frame.
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct FrameState {
     /// Linear breathiness level.
     breathiness_lin: f32,
@@ -767,7 +775,7 @@ struct FrameState {
 }
 
 /// Variables of the currently active F0 period (aka glottal period).
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct PeriodState {
     /// Modulated fundamental frequency for this period, in Hz, or 0.
     f0: f32,
@@ -783,6 +791,7 @@ struct PeriodState {
 }
 
 /// Sound generator controller.
+#[derive(Debug)]
 pub struct Generator<'a, R: Rng + Clone + 'static> {
     /// Main parameters.
     m_parms: &'a MainParms,
@@ -833,7 +842,7 @@ pub struct Generator<'a, R: Rng + Clone + 'static> {
 
     rng: R,
 }
-impl<'a, R: Rng + Clone + 'static> Generator<'a, R> {
+impl<'a, R: Rng + Clone + fmt::Debug + 'static> Generator<'a, R> {
     /// Creates a new generator.
     /// # Arguments
     /// * `m_parms` - Main parameters.
@@ -1185,7 +1194,7 @@ fn compute_rms(buf: &[f32]) -> f32 {
 }
 
 /// Generates a sound that consists of multiple frames.
-pub fn generate_sound<R: Rng + Clone + 'static>(
+pub fn generate_sound<R: Rng + Clone + fmt::Debug + 'static>(
     m_parms: &MainParms,
     f_parms_a: &[FrameParms],
     rng: R,
