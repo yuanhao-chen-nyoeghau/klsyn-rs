@@ -669,7 +669,11 @@ fn valid_freq(f: f32) -> bool {
 
 // Main logic
 
-#[derive(Debug)]
+#[cfg_attr(
+    feature = "strum",
+    derive(strum::Display, strum::EnumString, strum::EnumIter)
+)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum GlottalSourceType {
     Impulsive,
     Natural,

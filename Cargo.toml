@@ -9,3 +9,11 @@ rand = { version = "0.9", default-features = false }
 [dev-dependencies]
 hound = "3.5"
 rand = { version = "0.9", default-features = false, features = ["thread_rng"] }
+
+[features]
+strum = ["dep:strum"]
+
+[dependencies.strum]
+version = "0.27"
+optional = true
+features = ["strum_macros", "derive"]
