@@ -14,18 +14,18 @@ const DEMO_FRAME_PARMS: FrameParms = FrameParms {
     open_phase_ratio: 0.7,
     breathiness_db: -25.0,
     tilt_db: 0.0,
-    gain_db: f32::NAN,
+    gain_db: f64::NAN,
     agc_rms_level: 0.2,
-    nasal_formant_freq: f32::NAN,
-    nasal_formant_bw: f32::NAN,
+    nasal_formant_freq: f64::NAN,
+    nasal_formant_bw: f64::NAN,
     oral_formant_freq: [520.0, 1006.0, 2831.0, 3168.0, 4135.0, 5020.0],
     oral_formant_bw: [76.0, 102.0, 72.0, 102.0, 816.0, 596.0],
     cascade_enabled: true,
     cascade_voicing_db: 0.0,
     cascade_aspiration_db: -25.0,
     cascade_aspiration_mod: 0.5,
-    nasal_antiformant_freq: f32::NAN,
-    nasal_antiformant_bw: f32::NAN,
+    nasal_antiformant_freq: f64::NAN,
+    nasal_antiformant_bw: f64::NAN,
     parallel_enabled: true,
     parallel_voicing_db: 0.0,
     parallel_aspiration_db: -25.0,
@@ -33,7 +33,7 @@ const DEMO_FRAME_PARMS: FrameParms = FrameParms {
     frication_db: -30.0,
     frication_mod: 0.5,
     parallel_bypass_db: -99.0,
-    nasal_formant_db: f32::NAN,
+    nasal_formant_db: f64::NAN,
     oral_formant_db: [0.0, -8.0, -15.0, -19.0, -30.0, -35.0],
 };
 
@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut writer = WavWriter::create("vowel.wav", spec)?;
     for sample in sound {
-        writer.write_sample(sample)?;
+        writer.write_sample(sample as f32)?;
     }
 
     println!(

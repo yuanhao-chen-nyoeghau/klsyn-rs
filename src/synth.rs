@@ -1,6 +1,6 @@
 use crate::*;
 use rand::Rng;
-use std::{f32::consts::PI, fmt};
+use std::{f64::consts::PI, fmt};
 
 // Filters
 
@@ -21,7 +21,7 @@ pub trait FilterStep {
     /// * `x` - input signal value
     /// # Returns
     /// * output signal value
-    fn step(&mut self, x: f32) -> f32;
+    fn step(&mut self, x: f64) -> f64;
 }
 
 /// A first-order IIR LP filter.
@@ -63,11 +63,11 @@ pub trait FilterStep {
 pub struct LpFilter1 {
     sample_rate: usize,
     /// filter coefficient a
-    a: f32,
+    a: f64,
     /// filter coefficient b
-    b: f32,
+    b: f64,
     /// y[n-1], last output value
-    y1: f32,
+    y1: f64,
     passthrough: bool,
     muted: bool,
 }
@@ -91,10 +91,10 @@ impl LpFilter1 {
     /// * `g` - Gain at frequency f. Between 0 and 1 for LP filter. Greater than 1 for HP filter.
     /// * `extra_gain` - Extra gain factor. This is the resulting DC gain.
     ///   The resulting gain at `f` will be `g * extra_gain`.
-    pub fn set(&mut self, f: f32, g: f32, extra_gain: Option<f32>) -> KlResult<()> {
+    pub fn set(&mut self, f: f64, g: f64, extra_gain: Option<f64>) -> KlResult<()> {
         let extra_gain = extra_gain.unwrap_or(1.);
         if f <= 0.
-            || f >= self.sample_rate as f32 / 2.
+            || f >= self.sample_rate as f64 / 2.
             || g <= 0.
             || g >= 1.
             || !f.is_finite()
@@ -104,7 +104,7 @@ impl LpFilter1 {
             return KlError::err("invalid filter parameters");
         }
 
-        let w = 2. * PI * f / self.sample_rate as f32;
+        let w = 2. * PI * f / self.sample_rate as f64;
         let gp2 = g.powi(2);
         let q = (1. - gp2 * w.cos()) / (1. - gp2);
         self.b = q - (q.powi(2) - 1.).sqrt();
@@ -141,7 +141,7 @@ impl FilterGetTransferFunctionCoefficients for LpFilter1 {
     }
 }
 impl FilterStep for LpFilter1 {
-    fn step(&mut self, x: f32) -> f32 {
+    fn step(&mut self, x: f64) -> f64 {
         if self.passthrough {
             return x;
         }
@@ -186,16 +186,16 @@ impl FilterStep for LpFilter1 {
 pub struct Resonator {
     sample_rate: usize,
     /// filter coefficient a
-    a: f32,
+    a: f64,
     /// filter coefficient b
-    b: f32,
+    b: f64,
     /// filter coefficient c
-    c: f32,
+    c: f64,
     /// y[n-1], last output value
-    y1: f32,
+    y1: f64,
     /// y[n-2], second last output value
-    y2: f32,
-    r: f32,
+    y2: f64,
+    r: f64,
     passthrough: bool,
     muted: bool,
 }
@@ -221,11 +221,11 @@ impl Resonator {
     /// * `f` - Frequency of resonator in Hz. May be 0 for LP filtering.
     /// * `bw` - Bandwidth of resonator in Hz.
     /// * `dc_gain` - DC gain level.
-    pub fn set(&mut self, f: f32, bw: f32, dc_gain: Option<f32>) -> KlResult<()> {
+    pub fn set(&mut self, f: f64, bw: f64, dc_gain: Option<f64>) -> KlResult<()> {
         let dc_gain = dc_gain.unwrap_or(1.);
 
         if f < 0.
-            || f >= self.sample_rate as f32 / 2.
+            || f >= self.sample_rate as f64 / 2.
             || bw <= 0.
             || dc_gain <= 0.
             || !f.is_finite()
@@ -235,8 +235,8 @@ impl Resonator {
             return KlError::err("invalid resonator parameters");
         }
 
-        self.r = (-PI * bw / self.sample_rate as f32).exp();
-        let w = 2. * PI * f / self.sample_rate as f32;
+        self.r = (-PI * bw / self.sample_rate as f64).exp();
+        let w = 2. * PI * f / self.sample_rate as f64;
         self.c = -self.r.powi(2);
         self.b = 2. * self.r * w.cos();
         self.a = (1. - self.b - self.c) * dc_gain;
@@ -245,10 +245,10 @@ impl Resonator {
 
         Ok(())
     }
-    pub fn adjust_impulse_gain(&mut self, new_a: f32) {
+    pub fn adjust_impulse_gain(&mut self, new_a: f64) {
         self.a = new_a;
     }
-    pub fn adjust_peak_gain(&mut self, peak_gain: f32) -> KlResult<()> {
+    pub fn adjust_peak_gain(&mut self, peak_gain: f64) -> KlResult<()> {
         if peak_gain <= 0. || !peak_gain.is_finite() {
             return KlError::err("invalid resonator peak gain");
         }
@@ -284,7 +284,7 @@ impl FilterGetTransferFunctionCoefficients for Resonator {
     }
 }
 impl FilterStep for Resonator {
-    fn step(&mut self, x: f32) -> f32 {
+    fn step(&mut self, x: f64) -> f64 {
         if self.passthrough {
             return x;
         }
@@ -316,15 +316,15 @@ impl FilterStep for Resonator {
 struct AntiResonator {
     sample_rate: usize,
     /// filter coefficient a
-    a: f32,
+    a: f64,
     /// filter coefficient b
-    b: f32,
+    b: f64,
     /// filter coefficient c
-    c: f32,
+    c: f64,
     /// x[n-1], last input value
-    x1: f32,
+    x1: f64,
     /// x[n-2], second-last input value
-    x2: f32,
+    x2: f64,
     passthrough: bool,
     muted: bool,
 }
@@ -348,13 +348,13 @@ impl AntiResonator {
     /// # Arguments
     /// * `f` - Frequency of anti-resonator in Hz.
     /// * `bw` - Bandwidth of anti-resonator in Hz.
-    pub fn set(&mut self, f: f32, bw: f32) -> KlResult<()> {
-        if !valid_freq(f) || f >= self.sample_rate as f32 / 2. || !valid_freq(bw) {
+    pub fn set(&mut self, f: f64, bw: f64) -> KlResult<()> {
+        if !valid_freq(f) || f >= self.sample_rate as f64 / 2. || !valid_freq(bw) {
             return KlError::err("invalid anti-resonator parameters");
         }
 
-        let r = (-PI * bw / self.sample_rate as f32).exp();
-        let w = 2. * PI * f / self.sample_rate as f32;
+        let r = (-PI * bw / self.sample_rate as f64).exp();
+        let w = 2. * PI * f / self.sample_rate as f64;
         let c0 = -r.powi(2);
         let b0 = 2. * r * w.cos();
         let a0 = 1. - b0 - c0;
@@ -402,7 +402,7 @@ impl FilterGetTransferFunctionCoefficients for AntiResonator {
     }
 }
 impl FilterStep for AntiResonator {
-    fn step(&mut self, x: f32) -> f32 {
+    fn step(&mut self, x: f64) -> f64 {
         if self.passthrough {
             return x;
         }
@@ -437,7 +437,7 @@ impl FilterStep for AntiResonator {
 #[derive(Debug)]
 struct DifferencingFilter {
     /// x[n-1], last input value
-    x1: f32,
+    x1: f64,
 }
 impl DifferencingFilter {
     pub fn new() -> Self {
@@ -450,7 +450,7 @@ impl FilterGetTransferFunctionCoefficients for DifferencingFilter {
     }
 }
 impl FilterStep for DifferencingFilter {
-    fn step(&mut self, x: f32) -> f32 {
+    fn step(&mut self, x: f64) -> f64 {
         let y = x - self.x1;
         self.x1 = x;
         y
@@ -460,7 +460,7 @@ impl FilterStep for DifferencingFilter {
 // Sources
 
 trait SourceGetNext {
-    fn get_next(&mut self) -> f32;
+    fn get_next(&mut self) -> f64;
 }
 
 trait SourceStartPeriod {
@@ -473,7 +473,7 @@ trait SourceStartPeriod {
 // Noise sources
 
 /// Returns a random number within the range -1 .. 1.
-fn get_white_noise<R: Rng>(rng: &mut R) -> f32 {
+fn get_white_noise<R: Rng>(rng: &mut R) -> f64 {
     rng.random_range(-1. ..=1.)
 }
 
@@ -494,7 +494,7 @@ impl<R: Rng> LpNoiseSource<R> {
         let g = (1. - old_b)
             / (1. - 2. * old_b * (2. * PI * f / old_sample_rate).cos() + old_b.powi(2)).sqrt();
         // Compensate amplitude for output range -1 .. +1
-        let extra_gain = 2.5 * (sample_rate as f32 / 10000.).powf(1. / 3.);
+        let extra_gain = 2.5 * (sample_rate as f64 / 10000.).powf(1. / 3.);
         // Create an LP filter with the same characteristics but with our sampling rate.
         let mut lp_filter = LpFilter1::new(sample_rate);
         lp_filter.set(f, g, Some(extra_gain))?;
@@ -502,7 +502,7 @@ impl<R: Rng> LpNoiseSource<R> {
     }
 }
 impl<R: Rng> SourceGetNext for LpNoiseSource<R> {
-    fn get_next(&mut self) -> f32 {
+    fn get_next(&mut self) -> f64 {
         let x = get_white_noise(&mut self.rng);
         self.lp_filter.step(x)
     }
@@ -527,7 +527,7 @@ impl ImpulsiveGlottalSource {
     }
 }
 impl SourceGetNext for ImpulsiveGlottalSource {
-    fn get_next(&mut self) -> f32 {
+    fn get_next(&mut self) -> f64 {
         if self.resonator.passthrough {
             return 0.;
         }
@@ -548,7 +548,7 @@ impl SourceStartPeriod for ImpulsiveGlottalSource {
             self.resonator.set_passthrough();
             return Ok(());
         }
-        let bw = self.sample_rate as f32 / open_phase_length as f32;
+        let bw = self.sample_rate as f64 / open_phase_length as f64;
         self.resonator.set(0., bw, None)?;
         self.resonator.adjust_impulse_gain(1.);
         self.position_in_period = 0;
@@ -566,9 +566,9 @@ impl SourceStartPeriod for ImpulsiveGlottalSource {
 // This jump is not smoothed in the classic Klatt model. In Praat this "collision phase" is smoothed.
 #[derive(Debug, Default)]
 pub struct NaturalGlottalSource {
-    x: f32,
-    a: f32,
-    b: f32,
+    x: f64,
+    a: f64,
+    b: f64,
     open_phase_length: usize,
     position_in_period: usize,
 }
@@ -580,7 +580,7 @@ impl NaturalGlottalSource {
     }
 }
 impl SourceGetNext for NaturalGlottalSource {
-    fn get_next(&mut self) -> f32 {
+    fn get_next(&mut self) -> f64 {
         self.position_in_period += 1;
         if self.position_in_period >= self.open_phase_length {
             self.x = 0.;
@@ -594,7 +594,7 @@ impl SourceGetNext for NaturalGlottalSource {
 impl SourceStartPeriod for NaturalGlottalSource {
     fn start_period(&mut self, open_phase_length: usize) -> KlResult<()> {
         self.open_phase_length = open_phase_length;
-        let open_phase_length = open_phase_length as f32;
+        let open_phase_length = open_phase_length as f64;
         self.x = 0.;
         let amplification = 5.;
         self.b = -amplification / open_phase_length.powi(2);
@@ -614,7 +614,7 @@ impl<R: Rng> NoiseSource<R> {
     }
 }
 impl<R: Rng> SourceGetNext for NoiseSource<R> {
-    fn get_next(&mut self) -> f32 {
+    fn get_next(&mut self) -> f64 {
         get_white_noise(&mut self.rng)
     }
 }
@@ -644,7 +644,7 @@ impl<R: Rng + fmt::Debug> GlottalSource for NoiseSource<R> {}
 /// * `time` - Relative signal position in seconds.
 /// # Returns
 /// * Modulated fundamental frequency.
-pub fn perform_frequency_modulation(f0: f32, flutter_level: f32, time: f32) -> f32 {
+pub fn perform_frequency_modulation(f0: f64, flutter_level: f64, time: f64) -> f64 {
     if flutter_level <= 0. {
         return f0;
     }
@@ -655,15 +655,15 @@ pub fn perform_frequency_modulation(f0: f32, flutter_level: f32, time: f32) -> f
 
 /// Convert a dB value into a linear value.
 /// dB values of -99 and below or NaN are converted to 0.
-pub fn db_to_lin(db: f32) -> f32 {
+pub fn db_to_lin(db: f64) -> f64 {
     if db <= -99. || db.is_nan() {
         0.
     } else {
-        10_f32.powf(db / 20.)
+        10_f64.powf(db / 20.)
     }
 }
 
-fn valid_freq(f: f32) -> bool {
+fn valid_freq(f: f64) -> bool {
     f > 0. && f.is_finite()
 }
 
@@ -694,95 +694,95 @@ pub struct MainParms {
 #[derive(Debug, PartialEq, PartialOrd)]
 pub struct FrameParms {
     /// Frame duration in seconds.
-    pub duration: f32,
+    pub duration: f64,
     /// Fundamental frequency in Hz.
-    pub f0: f32,
+    pub f0: f64,
     /// F0 flutter level, 0 .. 1, typically 0.25.
-    pub flutter_level: f32,
+    pub flutter_level: f64,
     /// Relative length of the open phase of the glottis, 0 .. 1, typically 0.7.
-    pub open_phase_ratio: f32,
+    pub open_phase_ratio: f64,
     /// Breathiness in voicing (turbulence) in dB, positive to amplify or negative to attenuate.
-    pub breathiness_db: f32,
+    pub breathiness_db: f64,
     /// Spectral tilt for glottal source in dB. Attenuation at 3 kHz in dB. 0 = no tilt.
-    pub tilt_db: f32,
+    pub tilt_db: f64,
     /// Overall gain (output gain) in dB, positive to amplify, negative to attenuate, `NaN` for automatic gain control (AGC).
-    pub gain_db: f32,
+    pub gain_db: f64,
     /// RMS level for automatic gain control (AGC), only relevant when `gain_db` is `NaN`.
-    pub agc_rms_level: f32,
+    pub agc_rms_level: f64,
     /// Nasal formant frequency in Hz, or `NaN`.
-    pub nasal_formant_freq: f32,
+    pub nasal_formant_freq: f64,
     /// Nasal formant bandwidth in Hz, or `NaN`.
-    pub nasal_formant_bw: f32,
+    pub nasal_formant_bw: f64,
     /// Oral formant frequencies in Hz, or `NaN`.
-    pub oral_formant_freq: [f32; MAX_ORAL_FORMANTS],
+    pub oral_formant_freq: [f64; MAX_ORAL_FORMANTS],
     /// Oral formant bandwidths in Hz, or `NaN`.
-    pub oral_formant_bw: [f32; MAX_ORAL_FORMANTS],
+    pub oral_formant_bw: [f64; MAX_ORAL_FORMANTS],
 
     // Cascade branch:
     /// Whether the cascade branch is enabled.
     pub cascade_enabled: bool,
     /// Voicing amplitude for cascade branch in dB, positive to amplify or negative to attenuate.
-    pub cascade_voicing_db: f32,
+    pub cascade_voicing_db: f64,
     /// Aspiration (glottis noise) amplitude for cascade branch in dB, positive to amplify or negative to attenuate.
-    pub cascade_aspiration_db: f32,
+    pub cascade_aspiration_db: f64,
     /// Amplitude modulation factor for aspiration in cascade branch, 0 = no modulation, 1 = maximum modulation.
-    pub cascade_aspiration_mod: f32,
+    pub cascade_aspiration_mod: f64,
     /// Nasal antiformant frequency in Hz, or `NaN`.
-    pub nasal_antiformant_freq: f32,
+    pub nasal_antiformant_freq: f64,
     /// Nasal antiformant bandwidth in Hz, or `NaN`.
-    pub nasal_antiformant_bw: f32,
+    pub nasal_antiformant_bw: f64,
 
     // Parallel branch:
     /// Whether the parallel branch is enabled.
     pub parallel_enabled: bool,
     /// Voicing amplitude for parallel branch in dB, positive to amplify or negative to attenuate.
-    pub parallel_voicing_db: f32,
+    pub parallel_voicing_db: f64,
     /// Aspiration (glottis noise) amplitude for parallel branch in dB, positive to amplify or negative to attenuate.
-    pub parallel_aspiration_db: f32,
+    pub parallel_aspiration_db: f64,
     /// Amplitude modulation factor for aspiration in parallel branch, 0 = no modulation, 1 = maximum modulation.
-    pub parallel_aspiration_mod: f32,
+    pub parallel_aspiration_mod: f64,
     /// Frication noise level in dB.
-    pub frication_db: f32,
+    pub frication_db: f64,
     /// Amplitude modulation factor for frication noise in parallel branch, 0 = no modulation, 1 = maximum modulation.
-    pub frication_mod: f32,
+    pub frication_mod: f64,
     /// Parallel bypass level in dB, used to bypass differentiated glottal and frication signals around resonators F2 to F6.
-    pub parallel_bypass_db: f32,
+    pub parallel_bypass_db: f64,
     /// Nasal formant level in dB.
-    pub nasal_formant_db: f32,
+    pub nasal_formant_db: f64,
     /// Oral formant levels in dB, or `NaN`.
-    pub oral_formant_db: [f32; MAX_ORAL_FORMANTS],
+    pub oral_formant_db: [f64; MAX_ORAL_FORMANTS],
 }
 
 /// Variables of the currently active frame.
 #[derive(Debug, Default)]
 struct FrameState {
     /// Linear breathiness level.
-    breathiness_lin: f32,
+    breathiness_lin: f64,
     /// Linear overall gain.
-    gain_lin: f32,
+    gain_lin: f64,
 
     // Cascade branch:
     /// Linear voicing amplitude for cascade branch.
-    cascade_voicing_lin: f32,
+    cascade_voicing_lin: f64,
     /// Linear aspiration amplitude for cascade branch.
-    cascade_aspiration_lin: f32,
+    cascade_aspiration_lin: f64,
 
     // Parallel branch:
     /// Linear voicing amplitude for parallel branch.
-    parallel_voicing_lin: f32,
+    parallel_voicing_lin: f64,
     /// Linear aspiration amplitude for parallel branch.
-    parallel_aspiration_lin: f32,
+    parallel_aspiration_lin: f64,
     /// Linear frication noise level.
-    frication_lin: f32,
+    frication_lin: f64,
     /// Linear parallel bypass level.
-    parallel_bypass_lin: f32,
+    parallel_bypass_lin: f64,
 }
 
 /// Variables of the currently active F0 period (aka glottal period).
 #[derive(Debug, Default)]
 struct PeriodState {
     /// Modulated fundamental frequency for this period, in Hz, or 0.
-    f0: f32,
+    f0: f64,
     /// Period length in samples.
     period_length: usize,
     /// Open glottis phase length in samples.
@@ -791,7 +791,7 @@ struct PeriodState {
     position_in_period: usize,
     /// LP filtered noise.
     #[allow(dead_code)]
-    lp_noise: f32,
+    lp_noise: f64,
 }
 
 /// Sound generator controller.
@@ -886,7 +886,7 @@ impl<'a, R: Rng + Clone + fmt::Debug + 'static> Generator<'a, R> {
 
         generator
             .output_lp_filter
-            .set(0., m_parms.sample_rate as f32 / 2., None)?;
+            .set(0., m_parms.sample_rate as f64 / 2., None)?;
 
         Ok(generator)
     }
@@ -899,7 +899,7 @@ impl<'a, R: Rng + Clone + fmt::Debug + 'static> Generator<'a, R> {
     /// # Returns
     /// * `Ok(())` on success.
     /// * `Err(KlError)` on error.
-    pub fn generate_frame(&mut self, f_parms: &'a FrameParms, out_buf: &mut [f32]) -> KlResult<()> {
+    pub fn generate_frame(&mut self, f_parms: &'a FrameParms, out_buf: &mut [f64]) -> KlResult<()> {
         if let Some(self_f_parms) = self.f_parms {
             if f_parms == self_f_parms {
                 return KlError::err("FrameParms structure must not be re-used.");
@@ -925,7 +925,7 @@ impl<'a, R: Rng + Clone + fmt::Debug + 'static> Generator<'a, R> {
         Ok(())
     }
 
-    fn compute_next_output_signal_sample(&mut self) -> f32 {
+    fn compute_next_output_signal_sample(&mut self) -> f64 {
         let f_parms = self.f_parms.unwrap();
         let p_state = self.p_state.as_ref().unwrap();
         let mut voice = self.glottal_source.get_next();
@@ -951,7 +951,7 @@ impl<'a, R: Rng + Clone + fmt::Debug + 'static> Generator<'a, R> {
         out
     }
 
-    fn compute_cascade_branch(&mut self, voice: f32) -> f32 {
+    fn compute_cascade_branch(&mut self, voice: f64) -> f64 {
         let f_parms = self.f_parms.unwrap();
         let p_state = self.p_state.as_ref().unwrap();
         let cascade_voice = voice * self.f_state.cascade_voicing_lin;
@@ -972,7 +972,7 @@ impl<'a, R: Rng + Clone + fmt::Debug + 'static> Generator<'a, R> {
         v
     }
 
-    fn compute_parallel_branch(&mut self, voice: f32) -> f32 {
+    fn compute_parallel_branch(&mut self, voice: f64) -> f64 {
         let f_parms = self.f_parms.unwrap();
         let p_state = self.p_state.as_ref().unwrap();
         let parallel_voice = voice * self.f_state.parallel_voicing_lin;
@@ -1027,15 +1027,15 @@ impl<'a, R: Rng + Clone + fmt::Debug + 'static> Generator<'a, R> {
         let m_parms = self.m_parms;
         let f_parms = self.f_parms.unwrap();
         let flutter_time =
-            self.abs_position as f32 / m_parms.sample_rate as f32 + self.flutter_time_offset as f32;
+            self.abs_position as f64 / m_parms.sample_rate as f64 + self.flutter_time_offset as f64;
         p_state.f0 = perform_frequency_modulation(f_parms.f0, f_parms.flutter_level, flutter_time);
         p_state.period_length = if p_state.f0 > 0. {
-            (m_parms.sample_rate as f32 / p_state.f0).round() as usize
+            (m_parms.sample_rate as f64 / p_state.f0).round() as usize
         } else {
             1
         };
         p_state.open_phase_length = if p_state.period_length > 1 {
-            (p_state.period_length as f32 * f_parms.open_phase_ratio).round() as usize
+            (p_state.period_length as f64 * f_parms.open_phase_ratio).round() as usize
         } else {
             0
         };
@@ -1084,7 +1084,7 @@ impl<'a, R: Rng + Clone + fmt::Debug + 'static> Generator<'a, R> {
     }
 }
 
-fn set_tilt_filter(tilt_filter: &mut LpFilter1, tilt_db: f32) -> KlResult<()> {
+fn set_tilt_filter(tilt_filter: &mut LpFilter1, tilt_db: f64) -> KlResult<()> {
     if tilt_db == 0. {
         tilt_filter.set_passthrough();
     } else {
@@ -1157,7 +1157,7 @@ fn set_oral_formant_par(
             f_parms.oral_formant_db[i],
         )
     } else {
-        (f32::NAN, f32::NAN, f32::NAN)
+        (f64::NAN, f64::NAN, f64::NAN)
     };
     let peak_gain = db_to_lin(db);
     // Klatt used the following linear factors to adjust the levels of the parallel formant
@@ -1170,7 +1170,7 @@ fn set_oral_formant_par(
         oral_formant_par.set_mute();
     } else {
         oral_formant_par.set(f, bw, None)?;
-        let w = 2. * PI * f / m_parms.sample_rate as f32;
+        let w = 2. * PI * f / m_parms.sample_rate as f64;
         // gain of differencing filter
         let diff_gain = (2. - 2. * w.cos()).sqrt();
         // compensate differencing filter for F2 to F6
@@ -1183,7 +1183,7 @@ fn set_oral_formant_par(
     }
     Ok(())
 }
-fn adjust_signal_gain(buf: &mut [f32], target_rms: f32) {
+fn adjust_signal_gain(buf: &mut [f64], target_rms: f64) {
     let rms = compute_rms(buf);
     if rms == 0. {
         return;
@@ -1193,8 +1193,8 @@ fn adjust_signal_gain(buf: &mut [f32], target_rms: f32) {
         *x *= r;
     }
 }
-fn compute_rms(buf: &[f32]) -> f32 {
-    (buf.iter().map(|&x| x.powi(2)).sum::<f32>() / buf.len() as f32).sqrt()
+fn compute_rms(buf: &[f64]) -> f64 {
+    (buf.iter().map(|&x| x.powi(2)).sum::<f64>() / buf.len() as f64).sqrt()
 }
 
 /// Generates a sound that consists of multiple frames.
@@ -1202,16 +1202,16 @@ pub fn generate_sound<R: Rng + Clone + fmt::Debug + 'static>(
     m_parms: &MainParms,
     f_parms_a: &[FrameParms],
     rng: R,
-) -> KlResult<Vec<f32>> {
+) -> KlResult<Vec<f64>> {
     let mut generator = Generator::new(m_parms, rng)?;
     let out_buf_len = f_parms_a
         .iter()
-        .map(|f_parms| (f_parms.duration * m_parms.sample_rate as f32).round() as usize)
+        .map(|f_parms| (f_parms.duration * m_parms.sample_rate as f64).round() as usize)
         .sum();
     let mut out_buf = vec![0.; out_buf_len];
     let mut out_buf_pos = 0;
     for f_parms in f_parms_a {
-        let frame_len = (f_parms.duration * m_parms.sample_rate as f32).round() as usize;
+        let frame_len = (f_parms.duration * m_parms.sample_rate as f64).round() as usize;
         let frame_buf = &mut out_buf[out_buf_pos..out_buf_pos + frame_len];
         generator.generate_frame(f_parms, frame_buf)?;
         out_buf_pos += frame_len;
@@ -1221,7 +1221,7 @@ pub fn generate_sound<R: Rng + Clone + fmt::Debug + 'static>(
 
 // Transfer function
 
-const EPS: f32 = 1e-10;
+const EPS: f64 = 1e-10;
 
 /// Returns the polynomial coefficients of the overall filter transfer function in the z-plane.
 /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
@@ -1250,7 +1250,7 @@ pub fn get_vocal_tract_transfer_function_coefficients(
     voice = multiply_fractions(&voice, &branches_trans, Some(EPS))?;
 
     let mut output_lp_filter = Resonator::new(m_parms.sample_rate);
-    output_lp_filter.set(0., m_parms.sample_rate as f32 / 2., None)?;
+    output_lp_filter.set(0., m_parms.sample_rate as f64 / 2., None)?;
     let output_lp_trans = output_lp_filter.get_transfer_function_coefficients();
     voice = multiply_fractions(&voice, &output_lp_trans, Some(EPS))?;
 

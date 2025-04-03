@@ -2,7 +2,7 @@ use crate::*;
 use std::{cmp::max, vec};
 
 /// Returns `true` if two polynomials are equal.
-fn eq(p1: &[f32], p2: &[f32], eps: Option<f32>) -> bool {
+fn eq(p1: &[f64], p2: &[f64], eps: Option<f64>) -> bool {
     let eps = eps.unwrap_or_default().abs();
 
     let n1 = p1.len() - 1;
@@ -19,7 +19,7 @@ fn eq(p1: &[f32], p2: &[f32], eps: Option<f32>) -> bool {
 }
 
 /// Adds two real polynomials.
-fn add(p1: &[f32], p2: &[f32], eps: Option<f32>) -> KlResult<Vec<f32>> {
+fn add(p1: &[f64], p2: &[f64], eps: Option<f64>) -> KlResult<Vec<f64>> {
     let n1 = p1.len() - 1;
     let n2 = p2.len() - 1;
     let n3 = max(n1, n2);
@@ -33,7 +33,7 @@ fn add(p1: &[f32], p2: &[f32], eps: Option<f32>) -> KlResult<Vec<f32>> {
 }
 
 /// Multiplies two real polynomials.
-fn multiply(p1: &[f32], p2: &[f32], eps: Option<f32>) -> KlResult<Vec<f32>> {
+fn multiply(p1: &[f64], p2: &[f64], eps: Option<f64>) -> KlResult<Vec<f64>> {
     if p1.is_empty() || p2.is_empty() {
         return KlError::err("zero length arrays");
     }
@@ -58,7 +58,7 @@ fn multiply(p1: &[f32], p2: &[f32], eps: Option<f32>) -> KlResult<Vec<f32>> {
 
 /// Divides two real polynomials.
 /// Returns (quotient, remainder) = (p1 / p2, p1 % p2).
-fn divide(p1: &[f32], p2: &[f32], eps: Option<f32>) -> KlResult<(Vec<f32>, Vec<f32>)> {
+fn divide(p1: &[f64], p2: &[f64], eps: Option<f64>) -> KlResult<(Vec<f64>, Vec<f64>)> {
     if p1.is_empty() || p2.is_empty() {
         return KlError::err("zero length arrays");
     }
@@ -94,7 +94,7 @@ fn divide(p1: &[f32], p2: &[f32], eps: Option<f32>) -> KlResult<(Vec<f32>, Vec<f
 }
 
 /// Returns the monic GCD (greatest common divisor) of two polynomials.
-fn gcd(p1: &[f32], p2: &[f32], eps: Option<f32>) -> KlResult<Vec<f32>> {
+fn gcd(p1: &[f64], p2: &[f64], eps: Option<f64>) -> KlResult<Vec<f64>> {
     let mut r1 = trim(p1, eps)?;
     let mut r2 = trim(p2, eps)?;
     make_monic(&mut r1)?;
@@ -117,7 +117,7 @@ fn gcd(p1: &[f32], p2: &[f32], eps: Option<f32>) -> KlResult<Vec<f32>> {
 }
 
 /// Trims top order zero coefficients.
-fn trim(poly: &[f32], eps: Option<f32>) -> KlResult<Vec<f32>> {
+fn trim(poly: &[f64], eps: Option<f64>) -> KlResult<Vec<f64>> {
     if poly.is_empty() {
         return KlError::err("zero length arrays");
     }
@@ -138,7 +138,7 @@ fn trim(poly: &[f32], eps: Option<f32>) -> KlResult<Vec<f32>> {
 }
 
 /// Divides the coefficients by the leading coefficient.
-fn make_monic(poly: &mut [f32]) -> KlResult<()> {
+fn make_monic(poly: &mut [f64]) -> KlResult<()> {
     let len = poly.len();
     if len == 0 {
         return KlError::err("zero length array");
@@ -156,7 +156,7 @@ fn make_monic(poly: &mut [f32]) -> KlResult<()> {
 }
 
 /// Adds two fractions.
-pub(crate) fn add_fractions(f1: &Fraction, f2: &Fraction, eps: Option<f32>) -> KlResult<Fraction> {
+pub(crate) fn add_fractions(f1: &Fraction, f2: &Fraction, eps: Option<f64>) -> KlResult<Fraction> {
     let Fraction(n1, d1) = f1;
     let Fraction(n2, d2) = f2;
 
@@ -181,7 +181,7 @@ pub(crate) fn add_fractions(f1: &Fraction, f2: &Fraction, eps: Option<f32>) -> K
 pub(crate) fn multiply_fractions(
     f1: &Fraction,
     f2: &Fraction,
-    eps: Option<f32>,
+    eps: Option<f64>,
 ) -> KlResult<Fraction> {
     let Fraction(n1, d1) = f1;
     let Fraction(n2, d2) = f2;

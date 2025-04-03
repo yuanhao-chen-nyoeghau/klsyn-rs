@@ -28,13 +28,13 @@ pub type KlResult<T> = result::Result<T, KlError>;
 /// and the second vector represents the denominator.
 /// Terms are in ascending powers.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Fraction(pub Vec<f32>, pub Vec<f32>);
+pub struct Fraction(pub Vec<f64>, pub Vec<f64>);
 impl fmt::Display for Fraction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}) / ({})", format_poly(&self.0), format_poly(&self.1))
     }
 }
-fn format_poly(p: &[f32]) -> String {
+fn format_poly(p: &[f64]) -> String {
     let mut result = String::new();
     for (i, &coeff) in p.iter().enumerate() {
         if i > 0 {
@@ -44,7 +44,7 @@ fn format_poly(p: &[f32]) -> String {
     }
     result
 }
-fn format_poly_term(coeff: f32, power: usize) -> String {
+fn format_poly_term(coeff: f64, power: usize) -> String {
     let precision = 1;
     if power == 0 {
         format!("{:.*e}", precision, coeff)
@@ -65,8 +65,8 @@ fn format_poly_term(coeff: f32, power: usize) -> String {
 macro_rules! fraction {
     ($num:expr, $den:expr) => {
         Fraction(
-            $num.iter().map(|&x| x as f32).collect(),
-            $den.iter().map(|&x| x as f32).collect(),
+            $num.iter().map(|&x| x as f64).collect(),
+            $den.iter().map(|&x| x as f64).collect(),
         )
     };
 }
